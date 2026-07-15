@@ -17,6 +17,7 @@ const PLACE_FIELDS = [
   "types",
   "googleMapsUri",
   "paymentOptions",
+  "priceLevel",
 ].join(",");
 
 const SEARCH_FIELDS = PLACE_FIELDS.split(",").map(f => `places.${f}`).join(",");
@@ -60,6 +61,14 @@ function paymentTags(po) {
   return tags;
 }
 
+const PRICE_LEVELS = {
+  PRICE_LEVEL_FREE: 0,
+  PRICE_LEVEL_INEXPENSIVE: 1,
+  PRICE_LEVEL_MODERATE: 2,
+  PRICE_LEVEL_EXPENSIVE: 3,
+  PRICE_LEVEL_VERY_EXPENSIVE: 4,
+};
+
 function normalizePlace(p) {
   return {
     google_place_id: p.id,
@@ -67,6 +76,7 @@ function normalizePlace(p) {
     address: p.formattedAddress || "",
     google_rating: p.rating ?? null,
     google_rating_count: p.userRatingCount ?? null,
+    google_price_level: PRICE_LEVELS[p.priceLevel] ?? null,
     maps_url: p.googleMapsUri || "",
     cuisine: guessCuisine(p.types || []),
     google_payment_tags: paymentTags(p.paymentOptions),

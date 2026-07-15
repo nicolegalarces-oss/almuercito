@@ -12,8 +12,10 @@ create table if not exists lunch_places (
   google_rating numeric,
   google_rating_count int,
   google_payment_tags text[] default '{}',
+  google_price_level int,
   amipass boolean default false,
   healthy boolean default false,
+  menu_colacion boolean default false,
   tags text[] default '{}',
   notes text,
   added_by text,
@@ -24,6 +26,8 @@ create table if not exists lunch_places (
 alter table lunch_places add column if not exists google_place_id text;
 alter table lunch_places add column if not exists google_rating_count int;
 alter table lunch_places add column if not exists google_payment_tags text[] default '{}';
+alter table lunch_places add column if not exists google_price_level int;
+alter table lunch_places add column if not exists menu_colacion boolean default false;
 
 create table if not exists lunch_ratings (
   id uuid primary key default gen_random_uuid(),

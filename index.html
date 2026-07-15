@@ -73,6 +73,7 @@
   .tag{font-size:11px; padding:4px 10px; border-radius:20px; background:var(--card-hi); color:var(--text);}
   .tag.amipass{background:var(--amber-dim); color:var(--amber);}
   .tag.healthy{background:var(--green-dim); color:var(--green);}
+  .tag.menu{background:#2A3A4A; color:#7FB2E0;}
   .place-notes{font-size:12.5px; color:var(--muted); margin-top:6px; font-style:italic;}
 
   .place-actions{display:flex; justify-content:space-between; align-items:center; margin-top:12px;}
@@ -135,14 +136,33 @@
   .section-title{font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:6px 0 10px;}
   .geo-status{font-size:12.5px; color:var(--muted); margin-bottom:14px; display:flex; align-items:center; gap:8px; min-height:18px;}
   .geo-status button{background:none; border:none; color:var(--amber); font-size:12.5px; cursor:pointer; padding:0; text-decoration:underline;}
-  .nearby-scroll{display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; margin-bottom:4px; -webkit-overflow-scrolling:touch;}
-  .nearby-card{flex:0 0 220px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px;}
+  .nearby-scroll{display:flex; flex-direction:column; gap:10px; margin-bottom:4px;}
+  .nearby-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px;}
   .nearby-card .gname{font-weight:700; font-size:13.5px;}
-  .nearby-card .gaddr{font-size:11px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .nearby-card .gaddr{font-size:11px; color:var(--muted); margin-top:2px;}
   .nearby-card .grating{font-size:11.5px; color:var(--amber); margin-top:6px;}
   .nearby-card .ntags{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;}
   .nearby-card .ntags .tag{font-size:9.5px; padding:3px 7px;}
   .nearby-card button{width:100%; margin-top:10px;}
+
+  .roulette-btn{
+    width:100%; background:linear-gradient(135deg, var(--amber), #C77F1F); color:#1B1B1F;
+    font-size:16px; font-weight:800; padding:16px; border-radius:16px; border:none; cursor:pointer;
+    margin:18px 0; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .roulette-modes{display:flex; flex-direction:column; gap:10px;}
+  .roulette-modes .btn{width:100%;}
+  .pick-list{max-height:40vh; overflow-y:auto; margin:12px 0;}
+  .wheel-list{display:flex; flex-direction:column; gap:8px; margin:16px 0;}
+  .wheel-item{
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px;
+    font-weight:700; font-size:14.5px; text-align:center; transition:all .08s ease;
+  }
+  .wheel-item.active{background:var(--amber); border-color:var(--amber); color:#1B1B1F; transform:scale(1.03);}
+  .wheel-item.winner{background:var(--green); border-color:var(--green); color:#0F1F16; transform:scale(1.05);}
+  .roulette-result{text-align:center; padding:10px 0;}
+  .roulette-result .rname{font-size:22px; font-weight:800; margin:10px 0 4px;}
+  .roulette-result .raddr{color:var(--muted); font-size:12.5px; margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -152,6 +172,8 @@
     <h1>Almuerzo del Equipo</h1>
     <div class="sub">Rating y medios de pago vienen de Google Maps. El ranking de arriba lo hacemos nosotros, después de ir.</div>
   </header>
+
+  <button class="roulette-btn" id="btnOpenRoulette">🎡 ¿Qué comemos hoy?</button>
 
   <div id="geoStatus" class="geo-status"></div>
   <div id="nearbySection" style="display:none;">
@@ -200,6 +222,7 @@
       </div>
       <label class="checkfield"><input type="checkbox" id="fAmipass"> Aceptan Amipass</label>
       <label class="checkfield"><input type="checkbox" id="fHealthy"> Tiene opciones saludables</label>
+      <label class="checkfield"><input type="checkbox" id="fMenuColacion"> Ofrece menú/colación del día</label>
       <div class="field">
         <label>Notas (opcional)</label>
         <textarea id="fNotes" placeholder="Algo que el equipo debería saber…"></textarea>
@@ -220,6 +243,39 @@
   </div>
 </div>
 
+<div class="modal-bg" id="rouletteBg">
+  <div class="modal">
+    <h2>🎡 ¿Qué comemos hoy?</h2>
+
+    <div id="rouletteIntro" class="roulette-modes">
+      <button class="btn btn-primary" id="btnIndeciso">😵 Estoy indeciso, elige tú</button>
+      <button class="btn btn-ghost" id="btnManualPick">🙋 Quiero elegir mis opciones</button>
+    </div>
+
+    <div id="manualPickStep" style="display:none;">
+      <div class="sub" style="margin-bottom:10px;">Elige entre 2 y 5 lugares:</div>
+      <div class="pick-list" id="pickList"></div>
+      <button class="btn btn-primary" id="btnSpinManual" style="width:100%;" disabled>Girar la ruleta</button>
+    </div>
+
+    <div id="rouletteWheelStep" style="display:none;">
+      <div class="wheel-list" id="wheelList"></div>
+    </div>
+
+    <div id="rouletteResultStep" style="display:none;">
+      <div class="roulette-result">
+        <div style="font-size:36px;">🎉</div>
+        <div class="rname" id="resultName"></div>
+        <div class="raddr" id="resultAddr"></div>
+        <a id="resultMapsLink" href="#" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="display:inline-block; margin-bottom:10px;">Ver en Google Maps ↗</a>
+      </div>
+      <button class="btn btn-primary" id="btnSpinAgain" style="width:100%; margin-bottom:10px;">🎲 Girar de nuevo</button>
+    </div>
+
+    <button class="btn btn-ghost" id="btnCloseRoulette" style="width:100%; margin-top:6px;">Cerrar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -229,7 +285,7 @@ const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` 
 
 let places = [];
 let nearbyResults = [];
-let filters = { amipass:false, healthy:false, cuisine:null, query:'' };
+let filters = { amipass:false, healthy:false, menu:false, cuisine:null, query:'' };
 let sortBy = 'team';
 let pickedPlace = null;
 
@@ -250,6 +306,9 @@ function starString(avg){
 }
 function paymentTagsHtml(tags){
   return (tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+}
+function priceSymbol(level){
+  return (level == null || level <= 0) ? '' : '$'.repeat(level);
 }
 function getMyName(){ return localStorage.getItem('almuerzo_myname') || ''; }
 function setMyName(n){ localStorage.setItem('almuerzo_myname', n); }
@@ -318,6 +377,7 @@ function buildFilterChips(){
   const chips = [
     `<span class="chip ${filters.amipass?'selected':''}" data-f="amipass">💳 Amipass</span>`,
     `<span class="chip ${filters.healthy?'selected':''}" data-f="healthy">🥗 Saludable</span>`,
+    `<span class="chip ${filters.menu?'selected':''}" data-f="menu">🍱 Menú del día</span>`,
     ...cuisines.map(c => `<span class="chip ${filters.cuisine===c?'selected':''}" data-f="cuisine" data-v="${escapeHtml(c)}">${escapeHtml(c)}</span>`)
   ];
   el.innerHTML = chips.join('');
@@ -339,6 +399,7 @@ function filteredSorted(){
   let list = places.filter(p=>{
     if(filters.amipass && !p.amipass) return false;
     if(filters.healthy && !p.healthy) return false;
+    if(filters.menu && !p.menu_colacion) return false;
     if(filters.cuisine && p.cuisine !== filters.cuisine) return false;
     if(filters.query){
       const q = normalize(filters.query);
@@ -370,6 +431,7 @@ function renderPlaceCard(p){
   const tags = [];
   if(p.amipass) tags.push('<span class="tag amipass">💳 Amipass</span>');
   if(p.healthy) tags.push('<span class="tag healthy">🥗 Saludable</span>');
+  if(p.menu_colacion) tags.push('<span class="tag menu">🍱 Menú del día</span>');
   if(p.cuisine) tags.push(`<span class="tag">${escapeHtml(p.cuisine)}</span>`);
   (p.google_payment_tags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
   (p.tags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
@@ -394,7 +456,7 @@ function renderPlaceCard(p){
       <div class="rblock">
         <div class="rlabel">Google</div>
         <div class="rval">
-          ${p.google_rating ? `<span class="stars">${starString(p.google_rating)}</span> ${Number(p.google_rating).toFixed(1)} <span class="rsub">(${p.google_rating_count ?? 0})</span>` : '—'}
+          ${p.google_rating ? `<span class="stars">${starString(p.google_rating)}</span> ${Number(p.google_rating).toFixed(1)} <span class="rsub">(${p.google_rating_count ?? 0}) ${priceSymbol(p.google_price_level)}</span>` : '—'}
           ${p.google_place_id ? `<button class="refresh-btn" data-action="refresh-google" title="Actualizar desde Google">🔄</button>` : ''}
         </div>
       </div>
@@ -453,7 +515,7 @@ function renderNearby(){
     <div class="nearby-card" data-i="${i}">
       <div class="gname">${escapeHtml(r.name)}</div>
       <div class="gaddr">${escapeHtml(r.address)}</div>
-      <div class="grating">${r.google_rating ? `⭐ ${r.google_rating.toFixed(1)} (${r.google_rating_count ?? 0})` : 'Sin rating en Google'}</div>
+      <div class="grating">${r.google_rating ? `⭐ ${r.google_rating.toFixed(1)} (${r.google_rating_count ?? 0}) ${priceSymbol(r.google_price_level)}` : 'Sin rating en Google'}</div>
       <div class="ntags">${r.cuisine ? `<span class="tag">${escapeHtml(r.cuisine)}</span>` : ''}${paymentTagsHtml(r.google_payment_tags)}</div>
       <button class="btn btn-ghost btn-sm" data-action="quick-add">+ Agregar al ranking</button>
     </div>`).join('')}</div>`;
@@ -516,7 +578,7 @@ document.getElementById('list').addEventListener('click', async (e)=>{
     e.target.textContent = '⏳';
     try{
       const fresh = await refreshGoogle(googleId);
-      await patchPlace(placeId, { google_rating: fresh.google_rating, google_rating_count: fresh.google_rating_count, google_payment_tags: fresh.google_payment_tags });
+      await patchPlace(placeId, { google_rating: fresh.google_rating, google_rating_count: fresh.google_rating_count, google_payment_tags: fresh.google_payment_tags, google_price_level: fresh.google_price_level });
       showToast('Rating de Google actualizado');
       await loadPlaces();
     }catch(err){
@@ -590,6 +652,7 @@ function selectPickedPlace(p){
   document.getElementById('fTags').value = '';
   document.getElementById('fAmipass').checked = false;
   document.getElementById('fHealthy').checked = false;
+  document.getElementById('fMenuColacion').checked = false;
   document.getElementById('fNotes').value = '';
   document.getElementById('fAddedBy').value = getMyName();
   searchStep.style.display = 'none';
@@ -640,10 +703,12 @@ document.getElementById('btnSaveAdd').addEventListener('click', async ()=>{
     google_rating: pickedPlace.google_rating,
     google_rating_count: pickedPlace.google_rating_count,
     google_payment_tags: pickedPlace.google_payment_tags || [],
+    google_price_level: pickedPlace.google_price_level ?? null,
     cuisine: document.getElementById('fCuisine').value.trim() || null,
     tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
     amipass: document.getElementById('fAmipass').checked,
     healthy: document.getElementById('fHealthy').checked,
+    menu_colacion: document.getElementById('fMenuColacion').checked,
     notes: document.getElementById('fNotes').value.trim() || null,
     added_by: addedBy
   };
@@ -657,6 +722,118 @@ document.getElementById('btnSaveAdd').addEventListener('click', async ()=>{
     showToast('No se pudo guardar el lugar (¿ya estaba agregado?).');
   }
 });
+
+/* ---------- ruleta: ¿qué comemos hoy? ---------- */
+const rouletteBg = document.getElementById('rouletteBg');
+const rouletteIntro = document.getElementById('rouletteIntro');
+const manualPickStep = document.getElementById('manualPickStep');
+const rouletteWheelStep = document.getElementById('rouletteWheelStep');
+const rouletteResultStep = document.getElementById('rouletteResultStep');
+let manualPicked = new Set();
+let roulettePool = [];
+
+// Mejor calidad (ranking del equipo, o el de Google si aún no lo rankeamos) y menor precio.
+function rankValue(p){
+  const team = placeAvg(p);
+  const quality = team ?? p.google_rating ?? 3;
+  const price = p.google_price_level ?? 2;
+  return quality * 10 - price;
+}
+
+function resetRouletteModal(){
+  manualPicked = new Set();
+  roulettePool = [];
+  rouletteIntro.style.display = 'flex';
+  manualPickStep.style.display = 'none';
+  rouletteWheelStep.style.display = 'none';
+  rouletteResultStep.style.display = 'none';
+}
+
+function openRoulette(){
+  if(places.length === 0){ showToast('Agrega al menos un lugar primero.'); return; }
+  resetRouletteModal();
+  rouletteBg.classList.add('open');
+}
+function closeRoulette(){ rouletteBg.classList.remove('open'); }
+
+document.getElementById('btnOpenRoulette').addEventListener('click', openRoulette);
+document.getElementById('btnCloseRoulette').addEventListener('click', closeRoulette);
+rouletteBg.addEventListener('click', e=>{ if(e.target === rouletteBg) closeRoulette(); });
+
+document.getElementById('btnIndeciso').addEventListener('click', ()=>{
+  roulettePool = [...places].sort((a,b)=> rankValue(b)-rankValue(a)).slice(0,5);
+  startSpin();
+});
+
+document.getElementById('btnManualPick').addEventListener('click', ()=>{
+  rouletteIntro.style.display = 'none';
+  manualPickStep.style.display = 'block';
+  document.getElementById('pickList').innerHTML = places.map(p=>`
+    <label class="checkfield">
+      <input type="checkbox" data-id="${p.id}">
+      ${escapeHtml(p.name)}${p.google_rating ? ` · ⭐${p.google_rating.toFixed(1)}` : ''}
+    </label>`).join('');
+  document.getElementById('pickList').querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked){
+        if(manualPicked.size >= 5){ cb.checked = false; showToast('Máximo 5 opciones.'); return; }
+        manualPicked.add(cb.dataset.id);
+      } else {
+        manualPicked.delete(cb.dataset.id);
+      }
+      document.getElementById('btnSpinManual').disabled = manualPicked.size < 2;
+    });
+  });
+});
+
+document.getElementById('btnSpinManual').addEventListener('click', ()=>{
+  roulettePool = places.filter(p => manualPicked.has(p.id));
+  startSpin();
+});
+
+document.getElementById('btnSpinAgain').addEventListener('click', resetRouletteModal);
+
+function startSpin(){
+  rouletteIntro.style.display = 'none';
+  manualPickStep.style.display = 'none';
+  rouletteResultStep.style.display = 'none';
+  rouletteWheelStep.style.display = 'block';
+  document.getElementById('wheelList').innerHTML = roulettePool
+    .map((p,i)=>`<div class="wheel-item" data-i="${i}">${escapeHtml(p.name)}</div>`).join('');
+  spinTo(Math.floor(Math.random() * roulettePool.length));
+}
+
+function spinTo(winnerIndex){
+  const items = document.querySelectorAll('#wheelList .wheel-item');
+  const loops = 3;
+  const totalTicks = loops * roulettePool.length + winnerIndex + 1;
+  let tick = 0;
+  let delay = 90;
+  function step(){
+    items.forEach(el => el.classList.remove('active'));
+    items[tick % roulettePool.length].classList.add('active');
+    tick++;
+    if(tick < totalTicks){
+      delay *= 1.14;
+      setTimeout(step, delay);
+    } else {
+      items.forEach(el => el.classList.remove('active'));
+      items[winnerIndex].classList.add('winner');
+      setTimeout(()=> showResult(roulettePool[winnerIndex]), 500);
+    }
+  }
+  step();
+}
+
+function showResult(p){
+  rouletteWheelStep.style.display = 'none';
+  rouletteResultStep.style.display = 'block';
+  document.getElementById('resultName').textContent = p.name;
+  document.getElementById('resultAddr').textContent = p.address || '';
+  const link = document.getElementById('resultMapsLink');
+  if(p.maps_url){ link.href = p.maps_url; link.style.display = 'inline-block'; }
+  else { link.style.display = 'none'; }
+}
 
 loadPlaces();
 initNearby();
