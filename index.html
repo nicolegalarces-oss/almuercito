@@ -131,6 +131,18 @@
     transition:opacity .25s ease; z-index:60;
   }
   .toast.show{opacity:1;}
+
+  .section-title{font-size:12.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:6px 0 10px;}
+  .geo-status{font-size:12.5px; color:var(--muted); margin-bottom:14px; display:flex; align-items:center; gap:8px; min-height:18px;}
+  .geo-status button{background:none; border:none; color:var(--amber); font-size:12.5px; cursor:pointer; padding:0; text-decoration:underline;}
+  .nearby-scroll{display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; margin-bottom:4px; -webkit-overflow-scrolling:touch;}
+  .nearby-card{flex:0 0 220px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px;}
+  .nearby-card .gname{font-weight:700; font-size:13.5px;}
+  .nearby-card .gaddr{font-size:11px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .nearby-card .grating{font-size:11.5px; color:var(--amber); margin-top:6px;}
+  .nearby-card .ntags{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;}
+  .nearby-card .ntags .tag{font-size:9.5px; padding:3px 7px;}
+  .nearby-card button{width:100%; margin-top:10px;}
 </style>
 </head>
 <body>
@@ -138,11 +150,17 @@
   <header class="top">
     <div class="kicker">Ranking interno</div>
     <h1>Almuerzo del Equipo</h1>
-    <div class="sub">Los ratings vienen de Google Maps. El ranking de arriba lo hacemos nosotros.</div>
+    <div class="sub">Rating y medios de pago vienen de Google Maps. El ranking de arriba lo hacemos nosotros, después de ir.</div>
   </header>
 
+  <div id="geoStatus" class="geo-status"></div>
+  <div id="nearbySection" style="display:none;">
+    <div class="section-title">📍 Cerca de ti</div>
+    <div id="nearbyList"></div>
+  </div>
+
   <div class="toolbar">
-    <button class="btn btn-primary" id="btnAdd">+ Agregar lugar</button>
+    <button class="btn btn-primary" id="btnAdd">+ Agregar buscando por nombre</button>
   </div>
 
   <input class="search" id="searchBox" placeholder="Buscar por nombre, dirección o tipo de comida…">
@@ -210,6 +228,7 @@ const SUPABASE_KEY = "sb_publishable_oYs8eM7-ZsG3852xfNAQkA_HLsD99os";
 const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
 
 let places = [];
+let nearbyResults = [];
 let filters = { amipass:false, healthy:false, cuisine:null, query:'' };
 let sortBy = 'team';
 let pickedPlace = null;
@@ -228,6 +247,9 @@ function showToast(msg){
 function starString(avg){
   const rounded = Math.round(avg);
   return '★'.repeat(rounded) + '☆'.repeat(5-rounded);
+}
+function paymentTagsHtml(tags){
+  return (tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
 }
 function getMyName(){ return localStorage.getItem('almuerzo_myname') || ''; }
 function setMyName(n){ localStorage.setItem('almuerzo_myname', n); }
@@ -276,6 +298,11 @@ async function refreshGoogle(placeId){
   const res = await fetch(`/.netlify/functions/places?action=refresh&placeId=${encodeURIComponent(placeId)}`);
   if(!res.ok) throw new Error('refresh failed');
   return res.json();
+}
+async function fetchNearby(lat, lng){
+  const res = await fetch(`/.netlify/functions/places?action=nearby&lat=${lat}&lng=${lng}`);
+  if(!res.ok) throw new Error('nearby failed');
+  return (await res.json()).results || [];
 }
 
 function placeAvg(p){
@@ -344,6 +371,7 @@ function renderPlaceCard(p){
   if(p.amipass) tags.push('<span class="tag amipass">💳 Amipass</span>');
   if(p.healthy) tags.push('<span class="tag healthy">🥗 Saludable</span>');
   if(p.cuisine) tags.push(`<span class="tag">${escapeHtml(p.cuisine)}</span>`);
+  (p.google_payment_tags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
   (p.tags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
 
   const comments = (p.lunch_ratings || [])
@@ -408,9 +436,54 @@ async function loadPlaces(){
     places = await fetchPlaces();
     buildFilterChips();
     render();
+    renderNearby();
   }catch(e){
     document.getElementById('list').innerHTML = '<div class="empty">No se pudo conectar. Revisa tu internet.</div>';
   }
+}
+
+/* ---------- lugares cerca de ti (GPS) ---------- */
+function renderNearby(){
+  const section = document.getElementById('nearbySection');
+  const savedIds = new Set(places.map(p=>p.google_place_id).filter(Boolean));
+  const list = nearbyResults.filter(r => !savedIds.has(r.google_place_id));
+  if(list.length === 0){ section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  document.getElementById('nearbyList').innerHTML = `<div class="nearby-scroll">${list.map((r,i)=>`
+    <div class="nearby-card" data-i="${i}">
+      <div class="gname">${escapeHtml(r.name)}</div>
+      <div class="gaddr">${escapeHtml(r.address)}</div>
+      <div class="grating">${r.google_rating ? `⭐ ${r.google_rating.toFixed(1)} (${r.google_rating_count ?? 0})` : 'Sin rating en Google'}</div>
+      <div class="ntags">${r.cuisine ? `<span class="tag">${escapeHtml(r.cuisine)}</span>` : ''}${paymentTagsHtml(r.google_payment_tags)}</div>
+      <button class="btn btn-ghost btn-sm" data-action="quick-add">+ Agregar al ranking</button>
+    </div>`).join('')}</div>`;
+  document.getElementById('nearbyList').querySelectorAll('.nearby-card').forEach(card=>{
+    card.querySelector('[data-action="quick-add"]').addEventListener('click', ()=>{
+      openModal();
+      selectPickedPlace(list[Number(card.dataset.i)]);
+    });
+  });
+}
+
+function initNearby(){
+  const statusEl = document.getElementById('geoStatus');
+  if(!navigator.geolocation){
+    statusEl.textContent = 'Tu navegador no soporta ubicación. Agrega lugares buscando por nombre.';
+    return;
+  }
+  statusEl.textContent = 'Buscando lugares cerca de ti…';
+  navigator.geolocation.getCurrentPosition(async (pos)=>{
+    try{
+      nearbyResults = await fetchNearby(pos.coords.latitude, pos.coords.longitude);
+      statusEl.textContent = '';
+      renderNearby();
+    }catch(e){
+      statusEl.textContent = 'No se pudo cargar lugares cercanos desde Google.';
+    }
+  }, ()=>{
+    statusEl.innerHTML = 'No pudimos acceder a tu ubicación. <button id="btnRetryGeo">Reintentar</button>';
+    document.getElementById('btnRetryGeo').addEventListener('click', initNearby);
+  }, { enableHighAccuracy:true, timeout:8000 });
 }
 
 /* ---------- eventos: búsqueda y filtros ---------- */
@@ -443,7 +516,7 @@ document.getElementById('list').addEventListener('click', async (e)=>{
     e.target.textContent = '⏳';
     try{
       const fresh = await refreshGoogle(googleId);
-      await patchPlace(placeId, { google_rating: fresh.google_rating, google_rating_count: fresh.google_rating_count });
+      await patchPlace(placeId, { google_rating: fresh.google_rating, google_rating_count: fresh.google_rating_count, google_payment_tags: fresh.google_payment_tags });
       showToast('Rating de Google actualizado');
       await loadPlaces();
     }catch(err){
@@ -501,6 +574,28 @@ document.getElementById('btnAdd').addEventListener('click', openModal);
 document.getElementById('btnCancelAdd').addEventListener('click', closeModal);
 modalBg.addEventListener('click', e=>{ if(e.target === modalBg) closeModal(); });
 
+function selectPickedPlace(p){
+  pickedPlace = p;
+  document.getElementById('pickedCard').innerHTML = `
+    <div class="gname">${escapeHtml(p.name)}</div>
+    <div class="gaddr">${escapeHtml(p.address)}</div>
+    ${p.google_rating ? `<div class="grating">⭐ ${p.google_rating.toFixed(1)} (${p.google_rating_count ?? 0})</div>` : ''}
+    <div class="ntags">${paymentTagsHtml(p.google_payment_tags)}</div>
+    <button id="btnChangePick">Elegir otro</button>`;
+  document.getElementById('btnChangePick').addEventListener('click', ()=>{
+    detailsStep.style.display = 'none';
+    searchStep.style.display = 'block';
+  });
+  document.getElementById('fCuisine').value = p.cuisine || '';
+  document.getElementById('fTags').value = '';
+  document.getElementById('fAmipass').checked = false;
+  document.getElementById('fHealthy').checked = false;
+  document.getElementById('fNotes').value = '';
+  document.getElementById('fAddedBy').value = getMyName();
+  searchStep.style.display = 'none';
+  detailsStep.style.display = 'block';
+}
+
 document.getElementById('btnGSearch').addEventListener('click', async ()=>{
   const q = document.getElementById('gQuery').value.trim();
   if(!q) return;
@@ -519,25 +614,7 @@ document.getElementById('btnGSearch').addEventListener('click', async ()=>{
           <div class="grating">${r.google_rating ? `⭐ ${r.google_rating.toFixed(1)} (${r.google_rating_count ?? 0} en Google)` : 'Sin rating en Google'}</div>
         </div>`).join('');
       el.querySelectorAll('.gresult').forEach(card=>{
-        card.addEventListener('click', ()=>{
-          pickedPlace = results[Number(card.dataset.i)];
-          document.getElementById('pickedCard').innerHTML = `
-            <div class="gname">${escapeHtml(pickedPlace.name)}</div>
-            <div class="gaddr">${escapeHtml(pickedPlace.address)}</div>
-            <button id="btnChangePick">Elegir otro</button>`;
-          document.getElementById('btnChangePick').addEventListener('click', ()=>{
-            detailsStep.style.display = 'none';
-            searchStep.style.display = 'block';
-          });
-          document.getElementById('fCuisine').value = pickedPlace.cuisine || '';
-          document.getElementById('fTags').value = '';
-          document.getElementById('fAmipass').checked = false;
-          document.getElementById('fHealthy').checked = false;
-          document.getElementById('fNotes').value = '';
-          document.getElementById('fAddedBy').value = getMyName();
-          searchStep.style.display = 'none';
-          detailsStep.style.display = 'block';
-        });
+        card.addEventListener('click', ()=> selectPickedPlace(results[Number(card.dataset.i)]));
       });
     }
   }catch(err){
@@ -562,6 +639,7 @@ document.getElementById('btnSaveAdd').addEventListener('click', async ()=>{
     google_place_id: pickedPlace.google_place_id,
     google_rating: pickedPlace.google_rating,
     google_rating_count: pickedPlace.google_rating_count,
+    google_payment_tags: pickedPlace.google_payment_tags || [],
     cuisine: document.getElementById('fCuisine').value.trim() || null,
     tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
     amipass: document.getElementById('fAmipass').checked,
@@ -581,6 +659,7 @@ document.getElementById('btnSaveAdd').addEventListener('click', async ()=>{
 });
 
 loadPlaces();
+initNearby();
 </script>
 </body>
 </html>

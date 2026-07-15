@@ -2,29 +2,28 @@
 // Proxy hacia la API de Google Places (New). La API key vive solo en el
 // servidor (variable de entorno de Netlify), nunca se expone al navegador.
 //
+// GET /.netlify/functions/places?action=nearby&lat=..&lng=..&radius=1200
 // GET /.netlify/functions/places?action=search&q=texto de búsqueda
 // GET /.netlify/functions/places?action=refresh&placeId=ChIJ...
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
-const SEARCH_FIELDS = [
-  "places.id",
-  "places.displayName",
-  "places.formattedAddress",
-  "places.rating",
-  "places.userRatingCount",
-  "places.types",
-  "places.googleMapsUri",
-].join(",");
-
-const DETAILS_FIELDS = [
+const PLACE_FIELDS = [
   "id",
   "displayName",
   "formattedAddress",
   "rating",
   "userRatingCount",
+  "types",
   "googleMapsUri",
+  "paymentOptions",
 ].join(",");
+
+const SEARCH_FIELDS = PLACE_FIELDS.split(",").map(f => `places.${f}`).join(",");
+const NEARBY_FIELDS = SEARCH_FIELDS;
+const DETAILS_FIELDS = PLACE_FIELDS;
+
+const NEARBY_TYPES = ["restaurant", "cafe", "bakery", "meal_takeaway"];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -50,6 +49,17 @@ function guessCuisine(types = []) {
   return types.includes("restaurant") ? "Restaurante" : "";
 }
 
+// Google no conoce Amipass ni otros medios de pago chilenos específicos:
+// solo expone si aceptan tarjetas, efectivo o pago sin contacto en general.
+function paymentTags(po) {
+  if (!po) return [];
+  const tags = [];
+  if (po.acceptsCreditCards || po.acceptsDebitCards) tags.push("Acepta tarjetas");
+  if (po.acceptsCashOnly) tags.push("Solo efectivo");
+  if (po.acceptsNfc) tags.push("Pago sin contacto");
+  return tags;
+}
+
 function normalizePlace(p) {
   return {
     google_place_id: p.id,
@@ -59,6 +69,7 @@ function normalizePlace(p) {
     google_rating_count: p.userRatingCount ?? null,
     maps_url: p.googleMapsUri || "",
     cuisine: guessCuisine(p.types || []),
+    google_payment_tags: paymentTags(p.paymentOptions),
   };
 }
 
@@ -71,6 +82,35 @@ export default async (req) => {
   const action = url.searchParams.get("action");
 
   try {
+    if (action === "nearby") {
+      const lat = Number(url.searchParams.get("lat"));
+      const lng = Number(url.searchParams.get("lng"));
+      const radius = Number(url.searchParams.get("radius")) || 1200;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return json({ error: "Faltan lat/lng" }, 400);
+      }
+
+      const res = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": API_KEY,
+          "X-Goog-FieldMask": NEARBY_FIELDS,
+        },
+        body: JSON.stringify({
+          includedTypes: NEARBY_TYPES,
+          maxResultCount: 20,
+          languageCode: "es",
+          locationRestriction: {
+            circle: { center: { latitude: lat, longitude: lng }, radius },
+          },
+        }),
+      });
+      if (!res.ok) return json({ error: "Google Places respondió con error" }, 502);
+      const data = await res.json();
+      return json({ results: (data.places || []).map(normalizePlace) });
+    }
+
     if (action === "search") {
       const q = (url.searchParams.get("q") || "").trim();
       if (!q) return json({ error: "Falta el parámetro q" }, 400);

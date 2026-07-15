@@ -11,6 +11,7 @@ create table if not exists lunch_places (
   google_place_id text,
   google_rating numeric,
   google_rating_count int,
+  google_payment_tags text[] default '{}',
   amipass boolean default false,
   healthy boolean default false,
   tags text[] default '{}',
@@ -22,6 +23,7 @@ create table if not exists lunch_places (
 -- Por si la tabla ya existía de una versión anterior sin estas columnas
 alter table lunch_places add column if not exists google_place_id text;
 alter table lunch_places add column if not exists google_rating_count int;
+alter table lunch_places add column if not exists google_payment_tags text[] default '{}';
 
 create table if not exists lunch_ratings (
   id uuid primary key default gen_random_uuid(),
