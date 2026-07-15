@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Almuerzo del Equipo</title>
+<meta name="theme-color" content="#1B1B1F">
+<style>
+  :root{
+    --bg:#1B1B1F;
+    --card:#26262C;
+    --card-hi:#2E2E36;
+    --text:#F2F1ED;
+    --muted:#9B9AA3;
+    --line:#38383F;
+    --amber:#E8A33D;
+    --amber-dim:#4A3C22;
+    --green:#5FAE7E;
+    --green-dim:#20372A;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--font);
+    padding-bottom:50px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:680px; margin:0 auto; padding:26px 18px;}
+  header.top{margin-bottom:18px;}
+  .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--amber);}
+  h1{font-size:28px; font-weight:800; margin:6px 0 4px; letter-spacing:-.01em;}
+  .sub{color:var(--muted); font-size:13.5px;}
+
+  .btn{font-family:var(--font); font-size:14px; font-weight:700; padding:11px 18px; border-radius:12px; border:none; cursor:pointer;}
+  .btn-primary{background:var(--amber); color:#1B1B1F;}
+  .btn-ghost{background:var(--card); color:var(--text); border:1px solid var(--line);}
+  .btn-sm{padding:7px 13px; font-size:12.5px; border-radius:9px;}
+  .btn:disabled{opacity:.5; cursor:default;}
+
+  .toolbar{display:flex; gap:8px; margin:18px 0 12px;}
+  .toolbar .btn{flex:1;}
+
+  .search{
+    width:100%; font-family:var(--font); font-size:14px; padding:12px 14px;
+    border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--text); margin-bottom:10px;
+  }
+  .search::placeholder{color:var(--muted);}
+
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px;}
+  .chip{
+    font-size:12.5px; padding:7px 13px; border-radius:20px; border:1px solid var(--line);
+    background:var(--card); cursor:pointer; color:var(--text); user-select:none;
+  }
+  .chip.selected{background:var(--amber); border-color:var(--amber); color:#1B1B1F; font-weight:700;}
+
+  .sortrow{display:flex; justify-content:flex-end; gap:6px; margin-bottom:14px;}
+  .sortrow .chip{font-size:11.5px;}
+
+  .place{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; margin-bottom:14px;}
+  .place-name{font-size:18px; font-weight:800;}
+  .place-addr{font-size:12px; color:var(--muted); margin-top:3px;}
+  .place-addr a{color:var(--amber); text-decoration:none;}
+
+  .ratings-row{display:flex; gap:20px; margin:12px 0;}
+  .rblock .rlabel{font-family:var(--mono); font-size:9.5px; text-transform:uppercase; color:var(--muted); letter-spacing:.06em;}
+  .rblock .rval{font-size:15px; margin-top:3px; font-weight:700;}
+  .rblock .rsub{font-size:10.5px; color:var(--muted); font-weight:400;}
+  .stars{color:var(--amber); letter-spacing:1px;}
+  .refresh-btn{background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; margin-left:4px;}
+  .refresh-btn:hover{color:var(--amber);}
+
+  .place-tags{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0;}
+  .tag{font-size:11px; padding:4px 10px; border-radius:20px; background:var(--card-hi); color:var(--text);}
+  .tag.amipass{background:var(--amber-dim); color:var(--amber);}
+  .tag.healthy{background:var(--green-dim); color:var(--green);}
+  .place-notes{font-size:12.5px; color:var(--muted); margin-top:6px; font-style:italic;}
+
+  .place-actions{display:flex; justify-content:space-between; align-items:center; margin-top:12px;}
+  .added-by{font-family:var(--mono); font-size:10px; color:var(--muted);}
+
+  .rateform{margin-top:14px; padding-top:14px; border-top:1px solid var(--line); display:none;}
+  .rateform.open{display:block;}
+  .starpicker{display:flex; gap:5px; font-size:28px; cursor:pointer; margin-bottom:9px; color:var(--line);}
+  .starpicker span.active{color:var(--amber);}
+  .rateform input, .rateform textarea{
+    width:100%; font-family:var(--font); font-size:13px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:10px; background:var(--bg); color:var(--text); margin-bottom:8px;
+  }
+  .rateform textarea{resize:vertical; min-height:50px;}
+
+  .comments{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
+  .comment{font-size:12px; background:var(--bg); border-radius:9px; padding:7px 10px;}
+  .comment b{font-weight:700;}
+  .comment .cstars{color:var(--amber); font-size:10px;}
+
+  .empty{text-align:center; padding:50px 20px; color:var(--muted); font-size:13.5px;}
+  .loading{text-align:center; padding:60px 0; color:var(--muted); font-family:var(--mono); font-size:12px;}
+
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:50;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--bg); border-radius:20px 20px 0 0; padding:22px 18px 28px; width:100%; max-width:680px; max-height:88vh; overflow-y:auto; border-top:1px solid var(--line);}
+  .modal h2{font-size:19px; font-weight:800; margin:0 0 14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px;}
+  .field input, .field textarea{
+    width:100%; font-family:var(--font); font-size:14px; padding:11px 12px; border:1px solid var(--line);
+    border-radius:10px; background:var(--card); color:var(--text);
+  }
+  .checkfield{display:flex; align-items:center; gap:8px; font-size:13.5px; margin-bottom:10px;}
+  .checkfield input{width:auto;}
+
+  .searchstep .btn{width:100%; margin-bottom:14px;}
+  .gresults{display:flex; flex-direction:column; gap:8px; margin-bottom:16px;}
+  .gresult{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer;}
+  .gresult:hover{border-color:var(--amber);}
+  .gresult .gname{font-weight:700; font-size:14px;}
+  .gresult .gaddr{font-size:11.5px; color:var(--muted); margin-top:2px;}
+  .gresult .grating{font-size:12px; color:var(--amber); margin-top:4px;}
+
+  .picked-card{background:var(--card-hi); border:1px solid var(--amber); border-radius:12px; padding:12px 14px; margin-bottom:14px;}
+  .picked-card .gname{font-weight:700; font-size:15px;}
+  .picked-card .gaddr{font-size:12px; color:var(--muted); margin-top:2px;}
+  .picked-card button{background:none; border:none; color:var(--muted); font-size:11.5px; cursor:pointer; margin-top:6px; padding:0;}
+
+  .modal-actions{display:flex; gap:10px; margin-top:16px;}
+  .modal-actions .btn{flex:1;}
+
+  .toast{
+    position:fixed; top:16px; left:50%; transform:translateX(-50%); background:var(--amber); color:#1B1B1F;
+    padding:9px 18px; border-radius:20px; font-size:12.5px; font-weight:700; opacity:0; pointer-events:none;
+    transition:opacity .25s ease; z-index:60;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Ranking interno</div>
+    <h1>Almuerzo del Equipo</h1>
+    <div class="sub">Los ratings vienen de Google Maps. El ranking de arriba lo hacemos nosotros.</div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" id="btnAdd">+ Agregar lugar</button>
+  </div>
+
+  <input class="search" id="searchBox" placeholder="Buscar por nombre, dirección o tipo de comida…">
+
+  <div class="chips" id="filterChips"></div>
+  <div class="sortrow">
+    <span class="chip selected" data-sort="team">🏆 Mejor rankeados</span>
+    <span class="chip" data-sort="google">📍 Mejor en Google</span>
+    <span class="chip" data-sort="recent">🕓 Recién agregados</span>
+  </div>
+
+  <div id="list"><div class="loading">Cargando…</div></div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="searchstep" id="searchStep">
+      <h2>Buscar en Google Maps</h2>
+      <div class="field">
+        <label>Nombre del lugar</label>
+        <input id="gQuery" placeholder="Ej: Sushi Itto Providencia">
+      </div>
+      <button class="btn btn-primary" id="btnGSearch">Buscar</button>
+      <div class="gresults" id="gResults"></div>
+    </div>
+
+    <div id="detailsStep" style="display:none;">
+      <h2>Agregar lugar</h2>
+      <div class="picked-card" id="pickedCard"></div>
+      <div class="field">
+        <label>Tipo de comida</label>
+        <input id="fCuisine">
+      </div>
+      <div class="field">
+        <label>Etiquetas (separadas por coma)</label>
+        <input id="fTags" placeholder="Ej: rápido, delivery, vegano">
+      </div>
+      <label class="checkfield"><input type="checkbox" id="fAmipass"> Aceptan Amipass</label>
+      <label class="checkfield"><input type="checkbox" id="fHealthy"> Tiene opciones saludables</label>
+      <div class="field">
+        <label>Notas (opcional)</label>
+        <textarea id="fNotes" placeholder="Algo que el equipo debería saber…"></textarea>
+      </div>
+      <div class="field">
+        <label>Tu nombre*</label>
+        <input id="fAddedBy" placeholder="Para que el equipo sepa quién lo agregó">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnBackSearch">‹ Volver</button>
+        <button class="btn btn-primary" id="btnSaveAdd">Guardar</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" id="cancelRow">
+      <button class="btn btn-ghost" id="btnCancelAdd" style="width:100%;">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://wdorqckpgygvjgnvymue.supabase.co";
+const SUPABASE_KEY = "sb_publishable_oYs8eM7-ZsG3852xfNAQkA_HLsD99os";
+const HEADERS = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+
+let places = [];
+let filters = { amipass:false, healthy:false, cuisine:null, query:'' };
+let sortBy = 'team';
+let pickedPlace = null;
+
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function normalize(s){
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function starString(avg){
+  const rounded = Math.round(avg);
+  return '★'.repeat(rounded) + '☆'.repeat(5-rounded);
+}
+function getMyName(){ return localStorage.getItem('almuerzo_myname') || ''; }
+function setMyName(n){ localStorage.setItem('almuerzo_myname', n); }
+
+/* ---------- Supabase ---------- */
+async function fetchPlaces(){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/lunch_places?select=*,lunch_ratings(stars,rater_name,comment,created_at)&order=created_at.desc`, { headers: HEADERS });
+  if(!res.ok) throw new Error('fetch failed');
+  return res.json();
+}
+async function insertPlace(payload){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/lunch_places`, {
+    method:'POST',
+    headers:{ ...HEADERS, 'Content-Type':'application/json', Prefer:'return=representation' },
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error('insert failed');
+  return (await res.json())[0];
+}
+async function patchPlace(id, payload){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/lunch_places?id=eq.${id}`, {
+    method:'PATCH',
+    headers:{ ...HEADERS, 'Content-Type':'application/json', Prefer:'return=representation' },
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error('patch failed');
+  return (await res.json())[0];
+}
+async function ratePlace(placeId, stars, comment, raterName){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/lunch_ratings?on_conflict=place_id,rater_name`, {
+    method:'POST',
+    headers:{ ...HEADERS, 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ place_id: placeId, rater_name: raterName, stars, comment: comment || null })
+  });
+  if(!res.ok) throw new Error('rate failed');
+  return (await res.json())[0];
+}
+
+/* ---------- Google Places (vía función serverless) ---------- */
+async function searchGoogle(query){
+  const res = await fetch(`/.netlify/functions/places?action=search&q=${encodeURIComponent(query)}`);
+  if(!res.ok) throw new Error('search failed');
+  return (await res.json()).results || [];
+}
+async function refreshGoogle(placeId){
+  const res = await fetch(`/.netlify/functions/places?action=refresh&placeId=${encodeURIComponent(placeId)}`);
+  if(!res.ok) throw new Error('refresh failed');
+  return res.json();
+}
+
+function placeAvg(p){
+  const ratings = p.lunch_ratings || [];
+  if(ratings.length === 0) return null;
+  return ratings.reduce((a,r)=>a+r.stars, 0) / ratings.length;
+}
+
+/* ---------- filtros / orden ---------- */
+function buildFilterChips(){
+  const cuisines = [...new Set(places.map(p=>p.cuisine).filter(Boolean))].sort();
+  const el = document.getElementById('filterChips');
+  const chips = [
+    `<span class="chip ${filters.amipass?'selected':''}" data-f="amipass">💳 Amipass</span>`,
+    `<span class="chip ${filters.healthy?'selected':''}" data-f="healthy">🥗 Saludable</span>`,
+    ...cuisines.map(c => `<span class="chip ${filters.cuisine===c?'selected':''}" data-f="cuisine" data-v="${escapeHtml(c)}">${escapeHtml(c)}</span>`)
+  ];
+  el.innerHTML = chips.join('');
+  el.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const f = chip.dataset.f;
+      if(f === 'cuisine'){
+        filters.cuisine = filters.cuisine === chip.dataset.v ? null : chip.dataset.v;
+      } else {
+        filters[f] = !filters[f];
+      }
+      buildFilterChips();
+      render();
+    });
+  });
+}
+
+function filteredSorted(){
+  let list = places.filter(p=>{
+    if(filters.amipass && !p.amipass) return false;
+    if(filters.healthy && !p.healthy) return false;
+    if(filters.cuisine && p.cuisine !== filters.cuisine) return false;
+    if(filters.query){
+      const q = normalize(filters.query);
+      const hay = normalize([p.name, p.address, p.cuisine, (p.tags||[]).join(' ')].join(' '));
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(sortBy === 'team'){
+    list.sort((a,b)=>{
+      const av = placeAvg(a), bv = placeAvg(b);
+      if(av === null && bv === null) return 0;
+      if(av === null) return 1;
+      if(bv === null) return -1;
+      return bv - av;
+    });
+  } else if(sortBy === 'google'){
+    list.sort((a,b)=> (b.google_rating ?? -1) - (a.google_rating ?? -1));
+  } else {
+    list.sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+  }
+  return list;
+}
+
+/* ---------- render ---------- */
+function renderPlaceCard(p){
+  const avg = placeAvg(p);
+  const count = (p.lunch_ratings || []).length;
+  const tags = [];
+  if(p.amipass) tags.push('<span class="tag amipass">💳 Amipass</span>');
+  if(p.healthy) tags.push('<span class="tag healthy">🥗 Saludable</span>');
+  if(p.cuisine) tags.push(`<span class="tag">${escapeHtml(p.cuisine)}</span>`);
+  (p.tags || []).forEach(t => tags.push(`<span class="tag">${escapeHtml(t)}</span>`));
+
+  const comments = (p.lunch_ratings || [])
+    .filter(r => r.comment)
+    .sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 3)
+    .map(r => `<div class="comment"><span class="cstars">${starString(r.stars)}</span> <b>${escapeHtml(r.rater_name)}:</b> ${escapeHtml(r.comment)}</div>`)
+    .join('');
+
+  return `
+  <div class="place" data-id="${p.id}" data-google-id="${escapeHtml(p.google_place_id || '')}">
+    <div class="place-name">${escapeHtml(p.name)}</div>
+    ${p.address ? `<div class="place-addr">${escapeHtml(p.address)}</div>` : ''}
+    ${p.maps_url ? `<div class="place-addr"><a href="${escapeHtml(p.maps_url)}" target="_blank" rel="noopener">Ver en Google Maps ↗</a></div>` : ''}
+    <div class="ratings-row">
+      <div class="rblock">
+        <div class="rlabel">Ranking equipo</div>
+        <div class="rval">${avg !== null ? `<span class="stars">${starString(avg)}</span> ${avg.toFixed(1)} <span class="rsub">(${count})</span>` : 'Sin calificar aún'}</div>
+      </div>
+      <div class="rblock">
+        <div class="rlabel">Google</div>
+        <div class="rval">
+          ${p.google_rating ? `<span class="stars">${starString(p.google_rating)}</span> ${Number(p.google_rating).toFixed(1)} <span class="rsub">(${p.google_rating_count ?? 0})</span>` : '—'}
+          ${p.google_place_id ? `<button class="refresh-btn" data-action="refresh-google" title="Actualizar desde Google">🔄</button>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="place-tags">${tags.join('')}</div>
+    ${p.notes ? `<div class="place-notes">${escapeHtml(p.notes)}</div>` : ''}
+    <div class="comments">${comments}</div>
+    <div class="place-actions">
+      <span class="added-by">${p.added_by ? `Agregado por ${escapeHtml(p.added_by)}` : ''}</span>
+      <button class="btn btn-ghost btn-sm" data-action="toggle-rate">Rankear</button>
+    </div>
+    <div class="rateform" id="rateform-${p.id}">
+      <div class="starpicker" data-picked="0">
+        ${[1,2,3,4,5].map(n=>`<span data-star="${n}">☆</span>`).join('')}
+      </div>
+      <input class="rname" placeholder="Tu nombre" value="${escapeHtml(getMyName())}">
+      <textarea class="rcomment" placeholder="Comentario (opcional)"></textarea>
+      <button class="btn btn-primary btn-sm" data-action="submit-rate">Enviar</button>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const list = filteredSorted();
+  const el = document.getElementById('list');
+  if(places.length === 0){
+    el.innerHTML = '<div class="empty">Aún no hay lugares agregados.<br>Busca uno en Google y agrégalo 🍽️</div>';
+    return;
+  }
+  if(list.length === 0){
+    el.innerHTML = '<div class="empty">Ningún lugar coincide con el filtro.</div>';
+    return;
+  }
+  el.innerHTML = list.map(renderPlaceCard).join('');
+}
+
+async function loadPlaces(){
+  try{
+    places = await fetchPlaces();
+    buildFilterChips();
+    render();
+  }catch(e){
+    document.getElementById('list').innerHTML = '<div class="empty">No se pudo conectar. Revisa tu internet.</div>';
+  }
+}
+
+/* ---------- eventos: búsqueda y filtros ---------- */
+document.getElementById('searchBox').addEventListener('input', e=>{
+  filters.query = e.target.value;
+  render();
+});
+document.querySelectorAll('.sortrow .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.sortrow .chip').forEach(c=>c.classList.remove('selected'));
+    chip.classList.add('selected');
+    sortBy = chip.dataset.sort;
+    render();
+  });
+});
+
+/* ---------- eventos: tarjetas (rankear / refrescar google) ---------- */
+document.getElementById('list').addEventListener('click', async (e)=>{
+  const card = e.target.closest('.place');
+  if(!card) return;
+  const placeId = card.dataset.id;
+
+  if(e.target.dataset.action === 'toggle-rate'){
+    document.getElementById(`rateform-${placeId}`).classList.toggle('open');
+    return;
+  }
+
+  if(e.target.dataset.action === 'refresh-google'){
+    const googleId = card.dataset.googleId;
+    e.target.textContent = '⏳';
+    try{
+      const fresh = await refreshGoogle(googleId);
+      await patchPlace(placeId, { google_rating: fresh.google_rating, google_rating_count: fresh.google_rating_count });
+      showToast('Rating de Google actualizado');
+      await loadPlaces();
+    }catch(err){
+      showToast('No se pudo actualizar desde Google.');
+      e.target.textContent = '🔄';
+    }
+    return;
+  }
+
+  if(e.target.dataset.star){
+    const picker = e.target.closest('.starpicker');
+    const n = Number(e.target.dataset.star);
+    picker.dataset.picked = n;
+    picker.querySelectorAll('span').forEach((s,i)=>{
+      s.textContent = i < n ? '★' : '☆';
+      s.classList.toggle('active', i < n);
+    });
+    return;
+  }
+
+  if(e.target.dataset.action === 'submit-rate'){
+    const form = card.querySelector('.rateform');
+    const stars = Number(form.querySelector('.starpicker').dataset.picked || 0);
+    const name = form.querySelector('.rname').value.trim();
+    const comment = form.querySelector('.rcomment').value.trim();
+    if(!name){ showToast('Escribe tu nombre.'); return; }
+    if(!stars){ showToast('Elige una calificación de 1 a 5.'); return; }
+    try{
+      await ratePlace(placeId, stars, comment, name);
+      setMyName(name);
+      showToast('¡Gracias por rankear!');
+      await loadPlaces();
+    }catch(err){
+      showToast('No se pudo guardar tu ranking.');
+    }
+  }
+});
+
+/* ---------- modal: agregar lugar (buscar en Google → completar) ---------- */
+const modalBg = document.getElementById('modalBg');
+const searchStep = document.getElementById('searchStep');
+const detailsStep = document.getElementById('detailsStep');
+
+function openModal(){
+  pickedPlace = null;
+  searchStep.style.display = 'block';
+  detailsStep.style.display = 'none';
+  document.getElementById('gQuery').value = '';
+  document.getElementById('gResults').innerHTML = '';
+  modalBg.classList.add('open');
+}
+function closeModal(){ modalBg.classList.remove('open'); }
+
+document.getElementById('btnAdd').addEventListener('click', openModal);
+document.getElementById('btnCancelAdd').addEventListener('click', closeModal);
+modalBg.addEventListener('click', e=>{ if(e.target === modalBg) closeModal(); });
+
+document.getElementById('btnGSearch').addEventListener('click', async ()=>{
+  const q = document.getElementById('gQuery').value.trim();
+  if(!q) return;
+  const btn = document.getElementById('btnGSearch');
+  btn.disabled = true; btn.textContent = 'Buscando…';
+  try{
+    const results = await searchGoogle(q);
+    const el = document.getElementById('gResults');
+    if(results.length === 0){
+      el.innerHTML = '<div class="empty">No se encontraron resultados en Google Maps.</div>';
+    } else {
+      el.innerHTML = results.map((r,i)=>`
+        <div class="gresult" data-i="${i}">
+          <div class="gname">${escapeHtml(r.name)}</div>
+          <div class="gaddr">${escapeHtml(r.address)}</div>
+          <div class="grating">${r.google_rating ? `⭐ ${r.google_rating.toFixed(1)} (${r.google_rating_count ?? 0} en Google)` : 'Sin rating en Google'}</div>
+        </div>`).join('');
+      el.querySelectorAll('.gresult').forEach(card=>{
+        card.addEventListener('click', ()=>{
+          pickedPlace = results[Number(card.dataset.i)];
+          document.getElementById('pickedCard').innerHTML = `
+            <div class="gname">${escapeHtml(pickedPlace.name)}</div>
+            <div class="gaddr">${escapeHtml(pickedPlace.address)}</div>
+            <button id="btnChangePick">Elegir otro</button>`;
+          document.getElementById('btnChangePick').addEventListener('click', ()=>{
+            detailsStep.style.display = 'none';
+            searchStep.style.display = 'block';
+          });
+          document.getElementById('fCuisine').value = pickedPlace.cuisine || '';
+          document.getElementById('fTags').value = '';
+          document.getElementById('fAmipass').checked = false;
+          document.getElementById('fHealthy').checked = false;
+          document.getElementById('fNotes').value = '';
+          document.getElementById('fAddedBy').value = getMyName();
+          searchStep.style.display = 'none';
+          detailsStep.style.display = 'block';
+        });
+      });
+    }
+  }catch(err){
+    showToast('No se pudo buscar en Google. ¿Está configurada la API key?');
+  }
+  btn.disabled = false; btn.textContent = 'Buscar';
+});
+
+document.getElementById('btnBackSearch').addEventListener('click', ()=>{
+  detailsStep.style.display = 'none';
+  searchStep.style.display = 'block';
+});
+
+document.getElementById('btnSaveAdd').addEventListener('click', async ()=>{
+  if(!pickedPlace) return;
+  const addedBy = document.getElementById('fAddedBy').value.trim();
+  if(!addedBy){ showToast('Escribe tu nombre.'); return; }
+  const payload = {
+    name: pickedPlace.name,
+    address: pickedPlace.address,
+    maps_url: pickedPlace.maps_url,
+    google_place_id: pickedPlace.google_place_id,
+    google_rating: pickedPlace.google_rating,
+    google_rating_count: pickedPlace.google_rating_count,
+    cuisine: document.getElementById('fCuisine').value.trim() || null,
+    tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    amipass: document.getElementById('fAmipass').checked,
+    healthy: document.getElementById('fHealthy').checked,
+    notes: document.getElementById('fNotes').value.trim() || null,
+    added_by: addedBy
+  };
+  try{
+    await insertPlace(payload);
+    setMyName(addedBy);
+    closeModal();
+    showToast('¡Lugar agregado!');
+    await loadPlaces();
+  }catch(err){
+    showToast('No se pudo guardar el lugar (¿ya estaba agregado?).');
+  }
+});
+
+loadPlaces();
+</script>
+</body>
+</html>
